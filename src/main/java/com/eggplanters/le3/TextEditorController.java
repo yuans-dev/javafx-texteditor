@@ -129,6 +129,7 @@ public class TextEditorController {
             }
         } else if (currentFile == null) {
             save(true);
+            return;
         } else {
 
             if (currentFile != null) {
@@ -138,12 +139,15 @@ public class TextEditorController {
                 try (FileWriter fileWriter = new FileWriter(currentFile)) {
                     fileWriter.write(text);
                     isTextChanged = false;
+
                 } catch (IOException e) {
                     System.out.println("Something went wrong.");
                     e.printStackTrace();
                 }
             }
         }
+        var fileHistory = FileHistory.getInstance();
+        fileHistory.fileHistory.add(currentFile.getAbsolutePath());
     }
 
     public void setFile(File file) {

@@ -43,6 +43,6 @@
             </GridPane>
          </children>
       </VBox>
-      <ListView prefHeight="400.0" prefWidth="214.0" HBox.hgrow="ALWAYS" />
+      <ListView prefHeight="400.0" prefWidth="214.0" HBox.hgrow="ALWAYS" fx:id="fileHistoryListView"/>
    </children>
 </HBox>
