@@ -35,13 +35,25 @@ public class FileHistory {
 
     private String filename = "file_history.txt";
     private static FileHistory instance;
-    public ObservableList<String> fileHistory;
+    private ObservableList<String> fileHistory;
 
     public static FileHistory getInstance() {
         if (instance == null) {
             instance = new FileHistory();
         }
         return instance;
+    }
+
+    public ObservableList<String> getFileHistory() {
+        return fileHistory;
+    }
+
+    public void add(String filename) {
+        while (fileHistory.contains(filename)) {
+            fileHistory.remove(filename);
+
+        }
+        fileHistory.add(filename);
     }
 
     public void save() {

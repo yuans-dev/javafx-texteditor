@@ -2,6 +2,8 @@ package com.eggplanters.le3;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import java.util.ArrayList;
 
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
@@ -10,11 +12,11 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ListView;
-import javafx.scene.input.PickResult;
 import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 public class EntryController {
     @FXML
@@ -22,32 +24,46 @@ public class EntryController {
     @FXML
     ListView<String> fileHistoryListView;
 
+    private List<Stage> childrenStages;
+
     @FXML
     public void initialize() {
         Platform.runLater(() -> {
-            Stage stage = (Stage) parent.getScene().getWindow();
-            stage.setOnCloseRequest((e) -> {
-                var fileHistory = FileHistory.getInstance();
-                fileHistory.save();
+            childrenStages = new ArrayList<>();
+            Stage stage = getPrimaryStage();
+
+            stage.setOnCloseRequest(event -> {
+                for (Stage childStage : childrenStages) {
+                    if (childStage.isShowing()) {
+                        childStage.fireEvent(new WindowEvent(childStage, WindowEvent.WINDOW_CLOSE_REQUEST));
+                    }
+                }
+
+                if (childrenStages.stream().anyMatch(Stage::isShowing)) {
+                    event.consume();
+                }
+
+                FileHistory.getInstance().save();
             });
-            fileHistoryListView.setItems(FileHistory.getInstance().fileHistory);
+
+            fileHistoryListView.setItems(FileHistory.getInstance().getFileHistory());
             fileHistoryListView.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2) {
 
-                    ObservableList selectedIndices = fileHistoryListView.getSelectionModel().getSelectedIndices();
+                    ObservableList<Integer> selectedIndices = fileHistoryListView.getSelectionModel()
+                            .getSelectedIndices();
 
                     try {
                         if (event.getPickResult().getIntersectedNode().getClass() == Class
                                 .forName("com.sun.javafx.scene.control.LabeledText"))
-                            for (Object o : selectedIndices) {
-                                var file = new File(FileHistory.getInstance().fileHistory.get((int) o));
+                            for (Integer o : selectedIndices) {
+                                var file = new File(FileHistory.getInstance().getFileHistory().get(o));
                                 openNewWindow(stage, file);
                             }
-                    } catch (ClassNotFoundException e1) {
-
-                        e1.printStackTrace();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 }
 
@@ -57,51 +73,51 @@ public class EntryController {
 
     @FXML
     public void handleNew() throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("texteditor.fxml"));
-        Parent root = fxmlLoader.load();
-
-        Stage newWindow = new Stage();
-
-        newWindow.setScene(new Scene(root, 400, 300));
-
-        newWindow.show();
+        openNewWindow(getPrimaryStage(), null);
     }
 
     @FXML
     public void handleLoad() {
-        var stage = (Stage) parent.getScene().getWindow();
+        Stage stage = getPrimaryStage();
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Load file...");
-        fileChooser.getExtensionFilters().add(new ExtensionFilter("Text", "*.txt"));
-        var file = fileChooser.showOpenDialog(stage);
+        fileChooser.getExtensionFilters().add(new ExtensionFilter("Text Files", "*.txt"));
 
+        File file = fileChooser.showOpenDialog(stage);
         if (file != null) {
             try {
-
                 openNewWindow(stage, file);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-
     }
 
     @FXML
     public void handleClose() {
-
+        Stage stage = getPrimaryStage();
+        stage.fireEvent(new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST));
     }
 
-    public void openNewWindow(Stage stage, File file) throws IOException {
+    private Stage getPrimaryStage() {
+        return (Stage) parent.getScene().getWindow();
+    }
+
+    private void openNewWindow(Stage ownerStage, File file) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("texteditor.fxml"));
         Parent root = fxmlLoader.load();
         TextEditorController controller = fxmlLoader.getController();
-        controller.setFile(file);
-        var fileHistory = FileHistory.getInstance();
-        fileHistory.fileHistory.add(file.getAbsolutePath());
+
+        if (file != null) {
+            controller.setFile(file);
+            FileHistory.getInstance().add(file.getAbsolutePath());
+        }
 
         Stage newStage = new Stage();
         newStage.setScene(new Scene(root, 640, 480));
-
+        newStage.initOwner(ownerStage);
         newStage.show();
+
+        childrenStages.add(newStage);
     }
 }

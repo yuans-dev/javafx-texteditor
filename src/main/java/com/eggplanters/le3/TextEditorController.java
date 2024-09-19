@@ -42,6 +42,11 @@ public class TextEditorController {
                     promptSaveOnClose(stage);
                 }
             });
+            stage.setOnHiding(event -> {
+                if (isTextChanged) {
+                    createBackup();
+                }
+            });
             if (currentFile != null) {
 
                 try {
@@ -71,7 +76,6 @@ public class TextEditorController {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Unsaved changes in " + documentTitle);
         dialog.setHeaderText("You have unsaved changes.");
-        dialog.setContentText("Do you want to save your changes before closing?");
 
         ButtonType saveButton = new ButtonType("Save", ButtonData.YES);
         ButtonType dontSaveButton = new ButtonType("Don't Save", ButtonData.NO);
@@ -92,7 +96,7 @@ public class TextEditorController {
                     stage.close();
                 }
             } else if (result.get() == dontSaveButton) {
-
+                isTextChanged = false;
                 stage.close();
             }
 
@@ -102,6 +106,31 @@ public class TextEditorController {
     @FXML
     public void handleSave() {
         save(false);
+    }
+
+    public void createBackup() {
+        var text = textArea.getText();
+
+        File backupDir = new File("backups/");
+        if (!backupDir.exists()) {
+            backupDir.mkdirs();
+        }
+        var file = new File("backups/" + "backup-" + currentFile.getName());
+        try {
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+            try (FileWriter fileWriter = new FileWriter(file)) {
+                fileWriter.write(text);
+            } catch (IOException e) {
+                System.out.println("Something went wrong.");
+                e.printStackTrace();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        var fileHistory = FileHistory.getInstance();
+        fileHistory.add(file.getAbsolutePath());
     }
 
     public void save(boolean saveAsNewFile) {
@@ -147,7 +176,7 @@ public class TextEditorController {
             }
         }
         var fileHistory = FileHistory.getInstance();
-        fileHistory.fileHistory.add(currentFile.getAbsolutePath());
+        fileHistory.add(currentFile.getAbsolutePath());
     }
 
     public void setFile(File file) {
