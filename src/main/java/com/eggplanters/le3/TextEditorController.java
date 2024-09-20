@@ -103,6 +103,11 @@ public class TextEditorController {
         save(false);
     }
 
+    @FXML
+    public void handleSaveAs() {
+        save(true);
+    }
+
     public void createBackup() {
         var text = textArea.getText();
 
