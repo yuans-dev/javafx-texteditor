@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.text.*?>
 <?import javafx.scene.input.*?>
 <?import javafx.scene.control.*?>
 <?import java.lang.*?>
@@ -20,6 +21,9 @@
           </Menu>
         </menus>
       </MenuBar>
-      <TextArea fx:id="textArea" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
+      <TextArea fx:id="textArea" prefHeight="235.0" prefWidth="600.0" VBox.vgrow="ALWAYS">
+         <font>
+            <Font name="Courier New" size="15.0" />
+         </font></TextArea>
    </children>
 </VBox>

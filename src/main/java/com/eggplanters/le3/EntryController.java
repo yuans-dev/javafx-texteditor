@@ -40,6 +40,7 @@ public class EntryController {
                 }
 
                 if (childrenStages.stream().anyMatch(Stage::isShowing)) {
+
                     event.consume();
                 }
 

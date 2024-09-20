@@ -15,6 +15,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class TextEditorController {
 
@@ -24,6 +27,7 @@ public class TextEditorController {
     private boolean isTextChanged = false;
     private String documentTitle = "Untitled Document.txt";
     private File currentFile = null;
+    private ScheduledExecutorService scheduler;
 
     @FXML
     public void initialize() {
@@ -34,6 +38,7 @@ public class TextEditorController {
         });
 
         Platform.runLater(() -> {
+            startPeriodicBackup();
             Stage stage = (Stage) textArea.getScene().getWindow();
             stage.setTitle(documentTitle);
             stage.setOnCloseRequest(event -> {
@@ -41,35 +46,24 @@ public class TextEditorController {
                     event.consume();
                     promptSaveOnClose(stage);
                 }
-            });
-            stage.setOnHiding(event -> {
-                if (isTextChanged) {
-                    createBackup();
-                }
+                System.out.println(currentFile.lastModified() + " - " + System.currentTimeMillis());
+                scheduler.shutdown();
             });
             if (currentFile != null) {
-
-                try {
-
-                    BufferedReader br = new BufferedReader(new FileReader(currentFile));
-                    String line;
-                    StringBuilder text = new StringBuilder();
-                    while ((line = br.readLine()) != null) {
-                        text.append(line + "\n");
-                    }
-                    textArea.setText(text.toString());
-                    isTextChanged = false;
-                    documentTitle = currentFile.getName();
-                    stage.setTitle(documentTitle);
-                    br.close();
-                } catch (FileNotFoundException e) {
-
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                if (!checkForBackup()) {
+                    openFile(currentFile);
                 }
             }
+
         });
+    }
+
+    private void startPeriodicBackup() {
+        scheduler = Executors.newScheduledThreadPool(1);
+        scheduler.scheduleAtFixedRate(() -> {
+            createBackup();
+            System.out.println("Backup created at " + System.currentTimeMillis());
+        }, 30, 30, TimeUnit.SECONDS); // Save every 30 seconds
     }
 
     private void promptSaveOnClose(Stage stage) {
@@ -97,6 +91,7 @@ public class TextEditorController {
                 }
             } else if (result.get() == dontSaveButton) {
                 isTextChanged = false;
+
                 stage.close();
             }
 
@@ -129,8 +124,6 @@ public class TextEditorController {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        var fileHistory = FileHistory.getInstance();
-        fileHistory.add(file.getAbsolutePath());
     }
 
     public void save(boolean saveAsNewFile) {
@@ -175,11 +168,77 @@ public class TextEditorController {
                 }
             }
         }
+
         var fileHistory = FileHistory.getInstance();
         fileHistory.add(currentFile.getAbsolutePath());
     }
 
     public void setFile(File file) {
         currentFile = file;
+    }
+
+    public void openFile(File file) {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String line;
+            StringBuilder text = new StringBuilder();
+            while ((line = br.readLine()) != null) {
+                text.append(line + "\n");
+            }
+            textArea.setText(text.toString());
+            save(false);
+            br.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Stage getStage() {
+        var stage = (Stage) textArea.getScene().getWindow();
+        return stage;
+    }
+
+    public boolean checkForBackup() {
+        File backupFile = new File("backups/backup-" + currentFile.getName());
+
+        System.out.println(backupFile.lastModified() + " - " + currentFile.lastModified());
+        if (backupFile.exists() && backupFile.lastModified() > currentFile.lastModified()) {
+
+            if (openRestoreDialog()) {
+                openFile(backupFile);
+                backupFile.delete();
+                System.out.println("Backup restored");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean openRestoreDialog() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Backup found!");
+        dialog.setHeaderText("You have a backup for " + documentTitle);
+
+        ButtonType restoreButton = new ButtonType("Restore", ButtonData.YES);
+        ButtonType dontRestoreButton = new ButtonType("Don't restore", ButtonData.NO);
+
+        dialog.getDialogPane().getButtonTypes().addAll(restoreButton, dontRestoreButton);
+
+        VBox vbox = new VBox();
+        vbox.getChildren().add(new Label("Do you want to restore from backup?"));
+        dialog.getDialogPane().setContent(vbox);
+        Optional<ButtonType> result = dialog.showAndWait();
+        if (result.isPresent()) {
+            if (result.get() == restoreButton) {
+
+                return true;
+
+            } else if (result.get() == dontRestoreButton) {
+                return false;
+            }
+        }
+        return false;
     }
 }
