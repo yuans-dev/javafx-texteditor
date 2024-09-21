@@ -14,22 +14,15 @@ public class FileHistory {
     private FileHistory() {
         fileHistory = FXCollections.observableArrayList();
         try {
-            try {
-                BufferedReader br = new BufferedReader(new FileReader(filename));
-                String line;
-                while ((line = br.readLine()) != null) {
-                    fileHistory.add(line);
-                }
-                br.close();
-            } catch (FileNotFoundException e) {
-                File file = new File(filename);
-                file.createNewFile();
-                e.printStackTrace();
+            BufferedReader br = new BufferedReader(new FileReader(filename));
+            String line;
+            while ((line = br.readLine()) != null) {
+                fileHistory.add(line);
             }
+            br.close();
         } catch (IOException ioE) {
             ioE.printStackTrace();
         }
-
     }
 
     private String filename = "file_history.txt";
