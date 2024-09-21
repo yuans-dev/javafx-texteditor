@@ -33,37 +33,37 @@ public class TextEditorController {
     public void initialize() {
         textArea.textProperty().addListener((observable, oldValue, newValue) -> {
             isTextChanged = true;
-            Stage stage = (Stage) textArea.getScene().getWindow();
-            stage.setTitle(documentTitle + " (Unsaved)");
+            getStage().setTitle(documentTitle + " (Unsaved)"); // Indicates if file unsaved
         });
 
         Platform.runLater(() -> {
+
             startPeriodicBackup();
-            Stage stage = (Stage) textArea.getScene().getWindow();
-            stage.setTitle(documentTitle);
-            stage.setOnCloseRequest(event -> {
+
+            getStage().setTitle(documentTitle);
+            getStage().setOnCloseRequest(event -> {
                 if (isTextChanged) {
                     event.consume();
-                    promptSaveOnClose(stage);
+                    promptSaveOnClose(getStage());
                 }
-                System.out.println(currentFile.lastModified() + " - " + System.currentTimeMillis());
-                scheduler.shutdown();
+                // System.out.println(currentFile.lastModified() + " - " +
+                // System.currentTimeMillis());
+                scheduler.shutdown(); // Shuts down auto backup
             });
-            if (currentFile != null) {
-                if (!checkForBackup()) {
-                    openFile(currentFile);
-                }
+            if (currentFile != null && !checkForBackup()) {
+                openFile(currentFile);
             }
 
         });
     }
 
     private void startPeriodicBackup() {
+        // Creates a backup every 30 seconds
         scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
             createBackup();
             System.out.println("Backup created at " + System.currentTimeMillis());
-        }, 30, 30, TimeUnit.SECONDS); // Save every 30 seconds
+        }, 30, 30, TimeUnit.SECONDS);
     }
 
     private void promptSaveOnClose(Stage stage) {
@@ -92,6 +92,8 @@ public class TextEditorController {
             } else if (result.get() == dontSaveButton) {
                 isTextChanged = false;
 
+                File backupFile = new File("backups/backup-" + currentFile.getName());
+                backupFile.delete(); // Delete backup if user chooses not to save.
                 stage.close();
             }
 
@@ -134,6 +136,7 @@ public class TextEditorController {
     public void save(boolean saveAsNewFile) {
         var text = textArea.getText();
         var stage = (Stage) textArea.getScene().getWindow();
+
         if (saveAsNewFile) {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setInitialFileName("Untitled Document");
@@ -155,22 +158,19 @@ public class TextEditorController {
 
             }
         } else if (currentFile == null) {
-            save(true);
+            save(true);// Saves as new file if there is no file currently associated with the stage
             return;
-        } else {
+        } else if (currentFile != null) {
+            documentTitle = currentFile.getName();
+            stage.setTitle(documentTitle);
 
-            if (currentFile != null) {
-                documentTitle = currentFile.getName();
-                stage.setTitle(documentTitle);
+            try (FileWriter fileWriter = new FileWriter(currentFile)) {
+                fileWriter.write(text);
+                isTextChanged = false;
 
-                try (FileWriter fileWriter = new FileWriter(currentFile)) {
-                    fileWriter.write(text);
-                    isTextChanged = false;
-
-                } catch (IOException e) {
-                    System.out.println("Something went wrong.");
-                    e.printStackTrace();
-                }
+            } catch (IOException e) {
+                System.out.println("Something went wrong.");
+                e.printStackTrace();
             }
         }
 
@@ -182,7 +182,7 @@ public class TextEditorController {
         currentFile = file;
     }
 
-    public void openFile(File file) {
+    private void openFile(File file) {
         try {
             BufferedReader br = new BufferedReader(new FileReader(file));
             String line;
@@ -208,13 +208,15 @@ public class TextEditorController {
     public boolean checkForBackup() {
         File backupFile = new File("backups/backup-" + currentFile.getName());
 
-        System.out.println(backupFile.lastModified() + " - " + currentFile.lastModified());
+        // System.out.println(backupFile.lastModified() + " - " +
+        // currentFile.lastModified());
+
         if (backupFile.exists() && backupFile.lastModified() > currentFile.lastModified()) {
 
             if (openRestoreDialog()) {
                 openFile(backupFile);
                 backupFile.delete();
-                System.out.println("Backup restored");
+                // System.out.println("Backup restored");
                 return true;
             }
         }
